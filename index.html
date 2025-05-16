@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>Solifos Lead-Erfassung</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #f9f9f9;
+      max-width: 600px;
+      margin: auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: #004080;
+    }
+
+    form label {
+      display: block;
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+    }
+
+    .checkboxes label {
+      display: block;
+      margin: 5px 0;
+    }
+
+    .actions {
+      margin-top: 20px;
+    }
+
+    .actions button {
+      margin-top: 10px;
+      background-color: #0077cc;
+      color: white;
+      border: none;
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Solifos Messe-Lead Formular</h1>
+
+  <form id="leadForm">
+    <label>Name:</label>
+    <input type="text" id="name" required>
+
+    <label>Firma:</label>
+    <input type="text" id="company" required>
+
+    <label>E-Mail:</label>
+    <input type="email" id="email" required>
+
+    <label>Telefon:</label>
+    <input type="tel" id="phone">
+
+    <label>Interesse an:</label>
+    <div class="checkboxes">
+      <label><input type="checkbox" value="RPS-System"> RPS-System</label>
+      <label><input type="checkbox" value="Verbindungskabel"> Verbindungskabel</label>
+      <label><input type="checkbox" value="Adapterkabel"> Adapterkabel</label>
+      <label><input type="checkbox" value="Verlegezubehör"> Verlegezubehör</label>
+      <label><input type="checkbox" value="Sonstiges"> Sonstiges</label>
+    </div>
+
+    <label>Notizen:</label>
+    <textarea id="notes"></textarea>
+
+    <label>Visitenkarte (Foto/Datei):</label>
+    <input type="file" id="image" accept="image/*">
+
+    <button type="submit">Lead speichern & E-Mail vorbereiten</button>
+  </form>
+
+  <div class="actions">
+    <button onclick="exportCSV()">Alle Leads exportieren (CSV)</button>
+    <button onclick="exportImages()">Visitenkarten exportieren</button>
+  </div>
+
+  <script>
+    let leads = JSON.parse(localStorage.getItem("leads") || "[]");
+
+    document.getElementById("leadForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const name = document.getElementById("name").value;
+      const company = document.getElementById("company").value;
+      const email = document.getElementById("email").value;
+      const phone = document.getElementById("phone").value;
+      const notes = document.getElementById("notes").value;
+      const interests = Array.from(document.querySelectorAll("input[type=checkbox]:checked")).map(i => i.value);
+      const fileInput = document.getElementById("image");
+      const file = fileInput.files[0];
+
+      const reader = new FileReader();
+      reader.onload = function () {
+        const imageData = file ? reader.result : "";
+
+        const lead = {
+          name, company, email, phone, interests, notes, imageData
+        };
+
+        leads.push(lead);
+        localStorage.setItem("leads", JSON.stringify(leads));
+
+        const mailText = `Name: ${name}%0AFirma: ${company}%0AE-Mail: ${email}%0ATelefon: ${phone}%0AInteressen: ${interests.join(", ")}%0ANotizen: ${notes}`;
+        window.location.href = `mailto:dirk.mahler@solifos.com?subject=Messe-Lead&body=${mailText}`;
+
+        alert("Lead gespeichert und E-Mail vorbereitet.");
+        document.getElementById("leadForm").reset();
+      };
+
+      if (file) {
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload();
+      }
+    });
+
+    function exportCSV() {
+      let csv = "Name,Firma,E-Mail,Telefon,Interessen,Notizen\n";
+      leads.forEach(lead => {
+        csv += `"${lead.name}","${lead.company}","${lead.email}","${lead.phone}","${lead.interests.join("; ")}","${lead.notes}"\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "leads.csv";
+      a.click();
+    }
+
+    function exportImages() {
+      leads.forEach((lead, index) => {
+        if (lead.imageData) {
+          const a = document.createElement("a");
+          a.href = lead.imageData;
+          a.download = `visitenkarte_${index + 1}.png`;
+          a.click();
+        }
+      });
+    }
+  </script>
+</body>
+</html>
